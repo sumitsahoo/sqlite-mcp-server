@@ -1,65 +1,59 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #f4f6fc;
-  --color-brand-100: #e7ecf8;
-  --color-brand-200: #ced9ef;
-  --color-brand-300: #a7bde3;
-  --color-brand-400: #789ad3;
-  --color-brand-500: #577ac5;
-  --color-brand-600: #425ea8;
-  --color-brand-700: #364b88;
-  --color-brand-800: #2f4072;
-  --color-brand-900: #2b395e;
-  --color-brand-950: #1a223a;
+  /* Brand palette derived from #4db8a8 */
+  --color-brand-50: #effaf7;
+  --color-brand-100: #d0f2eb;
+  --color-brand-200: #a4e4d8;
+  --color-brand-300: #6fd0c1;
+  --color-brand-400: #4db8a8;
+  --color-brand-500: #2d9f90;
+  --color-brand-600: #218176;
+  --color-brand-700: #1e675f;
+  --color-brand-800: #1c534e;
+  --color-brand-900: #1a4541;
+  --color-brand-950: #0a2927;
 
-  --color-surface-50: #fafafa;
-  --color-surface-100: #f4f4f5;
-  --color-surface-200: #e4e4e7;
-  --color-surface-300: #d4d4d8;
-  --color-surface-400: #a1a1aa;
-  --color-surface-500: #71717a;
-  --color-surface-600: #52525b;
-  --color-surface-700: #3f3f46;
-  --color-surface-800: #27272a;
-  --color-surface-900: #18181b;
-  --color-surface-950: #09090b;
+  /* Neutral surface palette for light theme */
+  --color-surface-50: #f8fafb;
+  --color-surface-100: #f1f4f6;
+  --color-surface-200: #e5e9ec;
+  --color-surface-300: #d1d7dc;
+  --color-surface-400: #9ba5ae;
+  --color-surface-500: #6c7680;
+  --color-surface-600: #515b65;
+  --color-surface-700: #3e474f;
+  --color-surface-800: #2c343a;
+  --color-surface-900: #1a2028;
+  --color-surface-950: #0f1318;
 }
 
 @layer base {
-  :root {
-    --background: var(--color-surface-50);
-    --foreground: var(--color-surface-950);
-  }
-
-  /* Default implicitly to dark mode for a premium look */
   body {
-    background-color: var(--color-surface-950);
-    color: var(--color-surface-50);
+    background-color: var(--color-surface-50);
+    color: var(--color-surface-900);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
 
 @layer utilities {
-  .glass {
-    background: rgba(24, 24, 27, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  
-  .glass-card {
-    background: linear-gradient(145deg, rgba(39, 39, 42, 0.4) 0%, rgba(24, 24, 27, 0.8) 100%);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  .sidebar-glass {
+    background: linear-gradient(180deg, #ffffff 0%, var(--color-surface-50) 100%);
+    border-right: 1px solid var(--color-surface-200);
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
   }
 
-  .text-gradient {
-    background: linear-gradient(135deg, var(--color-brand-300), var(--color-brand-500));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .card {
+    background: #ffffff;
+    border: 1px solid var(--color-surface-200);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
+  }
+
+  .card-inset {
+    background: var(--color-surface-50);
+    border: 1px solid var(--color-surface-200);
+    border-radius: 8px;
   }
 }
 
@@ -68,4 +62,23 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Smooth scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-400);
 }
