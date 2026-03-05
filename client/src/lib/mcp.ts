@@ -1,74 +1,46 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
-// Hook to manage MCP connection and API calls
+const API_BASE = "http://localhost:3001";
+
+// Hook to manage API connection and tool calls
 export function useMcp() {
-  const [client, setClient] = useState<Client | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mcpClient: Client | null = null;
-
-    const connect = async () => {
-      try {
-        const transport = new SSEClientTransport(new URL("http://localhost:3001/sse"));
-
-        mcpClient = new Client(
-          { name: "sqlite-mcp-client", version: "1.0.0" },
-          { capabilities: {} },
-        );
-
-        await mcpClient.connect(transport);
-        setClient(mcpClient);
-        setIsConnected(true);
-        setError(null);
-      } catch (err: unknown) {
-        console.error("Failed to connect to MCP Server", err);
-        setError(err instanceof Error ? err.message : "Failed to connect to server.");
-        setIsConnected(false);
-      }
-    };
-
-    connect();
-
-    // Cleanup on unmount
-    return () => {
-      if (mcpClient) {
-        mcpClient.close().catch(console.error);
-      }
-    };
-  }, []);
-
-  // Generic tool caller
   const callTool = useCallback(
     async (toolName: string, args: Record<string, unknown> = {}) => {
-      if (!client || !isConnected) {
-        throw new Error("MCP Client is not connected");
-      }
       try {
-        const result = await client.callTool({
-          name: toolName,
-          arguments: args,
-        });
+        let res: Response;
 
-        // Parse JSON content if it exists
-        const content = result.content as Array<{ type: string; text: string }> | undefined;
-        if (content && content.length > 0) {
-          const textContent = content[0];
-          if (textContent?.text) {
-            return JSON.parse(textContent.text);
-          }
+        if (toolName === "list_tables") {
+          res = await fetch(`${API_BASE}/api/tables`);
+        } else if (toolName === "get_schema") {
+          const tableName = args.tableName as string;
+          res = await fetch(`${API_BASE}/api/schema/${encodeURIComponent(tableName)}`);
+        } else if (toolName === "read_query") {
+          res = await fetch(`${API_BASE}/api/query`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: args.query }),
+          });
+        } else {
+          throw new Error(`Unknown tool: ${toolName}`);
         }
-        return null;
-      } catch (error: unknown) {
-        console.error(`Error calling tool ${toolName}:`, error);
-        throw error;
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+
+        return await res.json();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        throw err;
       }
     },
-    [client, isConnected],
+    [],
   );
 
-  return { isConnected, error, callTool };
+  // Always "connected" since we're using plain REST
+  return { isConnected: true, error, callTool };
 }
