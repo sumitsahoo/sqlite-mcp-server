@@ -12,7 +12,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useMcp } from "./lib/mcp";
 
 type TableInfo = { name: string };
-type SchemaInfo = { createStatement: string; columns: any[] };
+type SchemaInfo = { createStatement: string; columns: Record<string, unknown>[] };
 
 function App() {
   const { isConnected, error, callTool } = useMcp();
@@ -25,7 +25,7 @@ function App() {
 
   // Raw SQL State
   const [query, setQuery] = useState("");
-  const [queryResults, setQueryResults] = useState<any[] | null>(null);
+  const [queryResults, setQueryResults] = useState<Record<string, unknown>[] | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ function App() {
   const [nlResult, setNlResult] = useState<{
     thought?: string;
     generated_sql?: string;
-    results?: any[];
+    results?: Record<string, unknown>[];
   } | null>(null);
   const [isNlExecuting, setIsNlExecuting] = useState(false);
   const [nlError, setNlError] = useState<string | null>(null);
@@ -113,7 +113,7 @@ function App() {
   };
 
   // Helper to render the data table
-  const renderDataTable = (results: any[] | null | undefined, errorState: string | null) => {
+  const renderDataTable = (results: Record<string, unknown>[] | null | undefined, errorState: string | null) => {
     if (errorState) {
       return (
         <div className="m-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 font-mono text-sm max-h-48 overflow-auto">
@@ -152,11 +152,13 @@ function App() {
         <tbody>
           {results.map((row, i) => (
             <tr
+              // biome-ignore lint/suspicious/noArrayIndexKey: SQL result rows have no stable unique ID
               key={i}
               className="hover:bg-brand-50/50 border-b border-surface-100 transition-colors"
             >
-              {Object.values(row).map((val: any, j) => (
+              {Object.values(row).map((val: unknown, j) => (
                 <td
+                  // biome-ignore lint/suspicious/noArrayIndexKey: Column values have no stable unique ID
                   key={j}
                   className="px-4 py-2.5 text-surface-700 whitespace-nowrap max-w-[250px] overflow-hidden text-ellipsis"
                 >
