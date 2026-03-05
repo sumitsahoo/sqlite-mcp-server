@@ -1,8 +1,8 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import cors from "cors";
 import express from "express";
+import { z } from "zod";
 import { runNLQuery } from "./agent.js";
 import db from "./db.js";
 
@@ -13,129 +13,80 @@ app.use(cors());
 const transports = new Map<string, SSEServerTransport>();
 
 function createMcpServer() {
-  // Initialize MCP Server
-  const server = new Server(
+  const server = new McpServer({
+    name: "sqlite-mcp-server",
+    version: "1.0.0",
+  });
+
+  // Register tools
+  server.registerTool(
+    "list_tables",
     {
-      name: "sqlite-mcp-server",
-      version: "1.0.0",
+      description: "Lists all tables in the SQLite database",
     },
-    {
-      capabilities: {
-        tools: {},
-      },
+    async () => {
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        .all();
+      return {
+        content: [{ type: "text", text: JSON.stringify(tables, null, 2) }],
+      };
     },
   );
 
-  // Define tools configuration
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: [
-        {
-          name: "list_tables",
-          description: "Lists all tables in the SQLite database",
-          inputSchema: {
-            type: "object",
-            properties: {},
-          },
-        },
-        {
-          name: "get_schema",
-          description: "Gets the schema (CREATE statement and columns) for a specific table",
-          inputSchema: {
-            type: "object",
-            properties: {
-              tableName: {
-                type: "string",
-                description: "The name of the table to get the schema for",
-              },
-            },
-            required: ["tableName"],
-          },
-        },
-        {
-          name: "read_query",
-          description: "Executes a read-only SELECT query against the SQLite database",
-          inputSchema: {
-            type: "object",
-            properties: {
-              query: {
-                type: "string",
-                description: "The SQL SELECT query to execute",
-              },
-            },
-            required: ["query"],
-          },
-        },
-      ],
-    };
-  });
+  server.registerTool(
+    "get_schema",
+    {
+      description: "Gets the schema (CREATE statement and columns) for a specific table",
+      inputSchema: {
+        tableName: z.string().describe("The name of the table to get the schema for"),
+      },
+    },
+    async ({ tableName }) => {
+      // Get the CREATE statement
+      const tableInfo = db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?")
+        .get(tableName) as { sql: string } | undefined;
 
-  // Implement tools
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-
-    try {
-      if (name === "list_tables") {
-        const tables = db
-          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-          .all();
-        return {
-          content: [{ type: "text", text: JSON.stringify(tables, null, 2) }],
-        };
-      } else if (name === "get_schema") {
-        const { tableName } = args as { tableName: string };
-
-        if (!tableName) {
-          throw new Error("tableName is required");
-        }
-
-        // Get the CREATE statement
-        const tableInfo = db
-          .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?")
-          .get(tableName) as { sql: string } | undefined;
-
-        if (!tableInfo) {
-          throw new Error(`Table not found: ${tableName}`);
-        }
-
-        // Get Pragma info for detailed typing
-        const columns = db.pragma(`table_info(${tableName})`);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ createStatement: tableInfo.sql, columns }, null, 2),
-            },
-          ],
-        };
-      } else if (name === "read_query") {
-        const { query } = args as { query: string };
-
-        if (!query) {
-          throw new Error("query is required");
-        }
-
-        // Extremely basic safety check, actual robust implementations should use read-only connections
-        if (!query.trim().toLowerCase().startsWith("select")) {
-          throw new Error("Only SELECT queries are allowed for safety.");
-        }
-
-        const results = db.prepare(query).all();
-
-        return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
-        };
+      if (!tableInfo) {
+        throw new Error(`Table not found: ${tableName}`);
       }
 
-      throw new Error(`Unknown tool: ${name}`);
-    } catch (error) {
+      // Get Pragma info for detailed typing
+      const columns = db.pragma(`table_info(${tableName})`);
+
       return {
-        isError: true,
-        content: [{ type: "text", text: String(error) }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ createStatement: tableInfo.sql, columns }, null, 2),
+          },
+        ],
       };
-    }
-  });
+    },
+  );
+
+  server.registerTool(
+    "read_query",
+    {
+      description: "Executes a read-only SELECT query against the SQLite database",
+      inputSchema: {
+        query: z.string().describe("The SQL SELECT query to execute"),
+      },
+    },
+    async ({ query }) => {
+      // Extremely basic safety check, actual robust implementations should use read-only connections
+      if (!query.trim().toLowerCase().startsWith("select")) {
+        throw new Error("Only SELECT queries are allowed for safety.");
+      }
+
+      const results = db.prepare(query).all();
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(results, null, 2) }],
+      };
+    },
+  );
 
   return server;
 }
