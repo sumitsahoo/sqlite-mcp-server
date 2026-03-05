@@ -21,17 +21,13 @@ Before you begin, ensure you have the following installed on your machine:
 
 Follow these steps to get both the server and the client up and running.
 
-### 1. Set up the Server
+### 1. Installation & Environment
 
-First, let's get the SQLite database and the MCP API running.
-
-1.  Open your terminal and navigate to the `server` directory:
+1.  Open your terminal and navigate to the project root.
+2.  Install dependencies for both the frontend and backend:
     ```bash
-    cd server
-    ```
-2.  Install the necessary dependencies:
-    ```bash
-    npm install
+    cd server && npm install
+    cd ../client && npm install
     ```
 3.  Configure your environment variables:
     *   Open the `/server/.env` file.
@@ -39,29 +35,17 @@ First, let's get the SQLite database and the MCP API running.
         ```env
         OPENAI_API_KEY=your_actual_api_key_here
         ```
-4.  Start the development server:
-    ```bash
-    npm run dev
-    ```
-    *🎉 The server should now be running! It will automatically create a `database.sqlite` file in the root directory and seed it with some sample `products` data if it doesn't already exist.*
 
-### 2. Set up the Client (DataStudio)
+### 2. Start Both Services
 
-Now, let's fire up the beautiful React frontend.
+Once dependencies are installed, you can launch the Server and the React App at the same time using the provided start script!
 
-1.  Open a **new** terminal window/tab and navigate to the `client` directory:
+1.  Go back to the root directory.
+2.  Run the start script (Linux/Mac):
     ```bash
-    cd client
+    ./start.sh
     ```
-2.  Install the dependencies:
-    ```bash
-    npm install
-    ```
-3.  Start the Vite development server:
-    ```bash
-    npm run dev
-    ```
-4.  Open your browser and navigate to the URL provided in the terminal (usually `http://localhost:5173/`).
+3.  The console will show output for both applications concurrently. Open your browser and navigate to the URL provided (usually `http://localhost:5173/`).
 
 ---
 
