@@ -3,9 +3,17 @@
 # Define colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}🚀 Starting SQLite MCP Server & DataStudio...${NC}\n"
+
+# Clean up existing processes on ports 3001 and 5173
+echo -e "${YELLOW}🧹 Cleaning up existing processes on ports 3001 and 5173...${NC}"
+kill $(lsof -t -i:3001) 2>/dev/null || true
+kill $(lsof -t -i:5173) 2>/dev/null || true
+# Wait briefly for ports to be freed
+sleep 1
 
 # Trap SIGINT (Ctrl+C) to kill background processes when the script exits
 trap 'kill 0' SIGINT

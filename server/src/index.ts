@@ -12,9 +12,8 @@ import { runNLQuery } from './agent.js';
 const app = express();
 app.use(cors());
 
-// Global variable to keep track of the current active SSE transport
-let transport: SSEServerTransport | null = null;
-let activeServer: Server | null = null;
+// Global map to keep track of active SSE transports
+const transports = new Map<string, SSEServerTransport>();
 
 function createMcpServer() {
     // Initialize MCP Server
@@ -153,43 +152,49 @@ function createMcpServer() {
 // Server-Sent Events (SSE) endpoint for clients to connect
 app.get('/sse', async (req, res) => {
     console.log('New SSE connection initiated');
-    if (transport) {
-        console.log('Closing existing transport connection');
-        try {
-            await transport.close();
-        } catch (e) {
-            console.error('Error closing transport:', e);
-        }
-    }
-    if (activeServer) {
-        try {
-            await activeServer.close();
-        } catch (e) { }
-    }
 
-    activeServer = createMcpServer();
-    transport = new SSEServerTransport('/message', res);
-    await activeServer.connect(transport);
+    // Create a new transport and server for this specific connection
+    const transport = new SSEServerTransport('/message', res);
+    const server = createMcpServer();
+
+    await server.connect(transport);
+
+    if (transport.sessionId) {
+        transports.set(transport.sessionId, transport);
+        console.log(`Stored transport with sessionId: ${transport.sessionId}`);
+    }
 
     res.on('close', () => {
-        console.log('SSE connection closed');
-        transport = null;
+        console.log(`SSE connection closed for sessionId: ${transport.sessionId}`);
+        if (transport.sessionId) {
+            transports.delete(transport.sessionId);
+        }
     });
 });
 
-app.use(express.json());
-
 // JSON-RPC message passing endpoint
+// NOTE: Do NOT apply express.json() here — the MCP SDK's SSEServerTransport
+// needs to read the raw request stream itself.
 app.post('/message', async (req, res) => {
-    if (!transport) {
-        res.status(400).send('No active SSE connection');
+    const sessionId = req.query.sessionId as string;
+
+    if (!sessionId) {
+        res.status(400).send('Missing sessionId');
         return;
     }
+
+    const transport = transports.get(sessionId);
+    if (!transport) {
+        res.status(404).send('Session not found');
+        return;
+    }
+
     await transport.handlePostMessage(req, res);
 });
 
 // Endpoint for Natural Language Queries via LangGraph
-app.post('/api/nl-query', async (req, res) => {
+// express.json() is scoped only to this route so it doesn't interfere with /message
+app.post('/api/nl-query', express.json(), async (req, res) => {
     try {
         const { query } = req.body;
         if (!query) {
