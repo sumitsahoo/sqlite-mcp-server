@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMcp } from "./lib/mcp";
 import { Database, Table, Play, Terminal, DatabaseZap, Loader2, Sparkles, MessageSquare } from "lucide-react";
 
@@ -241,7 +241,7 @@ function App() {
                   }`}
                 onClick={() => setActiveTab('nl')}
               >
-                <Sparkles size={16} /> Ask AI (NL)
+                <Sparkles size={16} /> Ask AI
               </button>
             </div>
 
@@ -322,8 +322,8 @@ function App() {
                         </div>
                       </div>
                     )}
-                    <div className="flex-1 relative overflow-auto">
-                      {renderDataTable(nlResult?.results, nlError)}
+                    <div className="flex-1 relative overflow-auto min-h-0">
+                      {(nlResult?.results || nlError) && renderDataTable(nlResult?.results, nlError)}
                       {!nlResult && !nlError && !isNlExecuting && (
                         <div className="absolute inset-0 flex items-center justify-center text-surface-400 text-sm text-center px-8">
                           Enter a prompt above and the LangGraph Agent will analyze your request,<br />formulate an SQL query, and run it.
