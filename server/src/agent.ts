@@ -1,6 +1,5 @@
+import { createAgent, tool } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
-import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import db from "./db.js";
 import dotenv from "dotenv";
@@ -72,7 +71,7 @@ const readQueryTool = tool(
 const tools = [listTablesTool, getSchemaTool, readQueryTool];
 
 const llm = new ChatOpenAI({
-    modelName: "gpt-4o",
+    model: "gpt-4o",
     temperature: 0,
 });
 
@@ -89,10 +88,10 @@ You MUST follow this process:
 }
 If there is an error during execution or you cannot find data, try fixing the query. If you absolutely cannot answer the query, "results" should be [] and "thought" should explain the failure.`;
 
-export const agent = createReactAgent({
-    llm,
+export const agent = createAgent({
+    model: llm,
     tools,
-    stateModifier: systemMessage,
+    systemPrompt: systemMessage,
 });
 
 export async function runNLQuery(userQuery: string) {
