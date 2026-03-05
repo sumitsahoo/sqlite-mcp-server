@@ -1,8 +1,8 @@
-import { createAgent, tool } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
+import dotenv from "dotenv";
+import { createAgent, tool } from "langchain";
 import { z } from "zod";
 import db from "./db.js";
-import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -10,9 +10,7 @@ dotenv.config();
 const listTablesTool = tool(
     async () => {
         const tables = db
-            .prepare(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-            )
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
             .all();
         return JSON.stringify(tables, null, 2);
     },
@@ -20,7 +18,7 @@ const listTablesTool = tool(
         name: "list_tables",
         description: "Lists all tables in the SQLite database.",
         schema: z.object({}),
-    }
+    },
 );
 
 // Tool: Get Schema
@@ -43,7 +41,7 @@ const getSchemaTool = tool(
         schema: z.object({
             tableName: z.string().describe("The name of the table to get the schema for"),
         }),
-    }
+    },
 );
 
 // Tool: Read Query
@@ -55,8 +53,8 @@ const readQueryTool = tool(
         try {
             const results = db.prepare(query).all();
             return JSON.stringify(results, null, 2);
-        } catch (e: any) {
-            return `Error executing query: ${e.message}`;
+        } catch (e: unknown) {
+            return `Error executing query: ${e instanceof Error ? e.message : String(e)}`;
         }
     },
     {
@@ -65,7 +63,7 @@ const readQueryTool = tool(
         schema: z.object({
             query: z.string().describe("The SQL SELECT query to execute"),
         }),
-    }
+    },
 );
 
 const tools = [listTablesTool, getSchemaTool, readQueryTool];
@@ -101,25 +99,26 @@ export async function runNLQuery(userQuery: string) {
         });
 
         const finalAgentMessage = response.messages[response.messages.length - 1];
-        let contentStr = typeof finalAgentMessage.content === "string"
-            ? finalAgentMessage.content
-            : JSON.stringify(finalAgentMessage.content);
+        let contentStr =
+            typeof finalAgentMessage.content === "string"
+                ? finalAgentMessage.content
+                : JSON.stringify(finalAgentMessage.content);
 
         // Strip markdown JSON wrapping if the LLM adds it despite instructions
         contentStr = contentStr.trim();
-        if (contentStr.startsWith("\`\`\`json")) {
-            contentStr = contentStr.replace(/^\`\`\`json/, "");
-        } else if (contentStr.startsWith("\`\`\`")) {
-            contentStr = contentStr.replace(/^\`\`\`/, "");
+        if (contentStr.startsWith("```json")) {
+            contentStr = contentStr.replace(/^```json/, "");
+        } else if (contentStr.startsWith("```")) {
+            contentStr = contentStr.replace(/^```/, "");
         }
-        if (contentStr.endsWith("\`\`\`")) {
-            contentStr = contentStr.replace(/\`\`\`$/, "");
+        if (contentStr.endsWith("```")) {
+            contentStr = contentStr.replace(/```$/, "");
         }
 
         const parsed = JSON.parse(contentStr.trim());
         return parsed;
-    } catch (err: any) {
+    } catch (err: unknown) {
         console.error("NL LangGraph Error:", err);
-        throw new Error(`Agent execution failed: ${err.message}`);
+        throw new Error(`Agent execution failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 }
