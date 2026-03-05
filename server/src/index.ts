@@ -6,13 +6,22 @@ import { z } from "zod";
 import { runNLQuery } from "./agent.js";
 import db from "./db.js";
 
-// --- MCP Server (stdio) ---
+// =============================================================================
+// MCP Server (stdio transport)
+// =============================================================================
+// This section sets up the MCP (Model Context Protocol) server that communicates
+// over stdio. MCP hosts like Claude Desktop, VS Code, or other compatible
+// clients can launch this process and interact with the registered tools via
+// JSON-RPC messages over stdin/stdout.
 
 const server = new McpServer({
   name: "sqlite-mcp-server",
   version: "1.0.0",
 });
 
+// --- Tool: list_tables ---
+// Returns all user-created tables in the SQLite database.
+// System tables (prefixed with "sqlite_") are excluded.
 server.registerTool(
   "list_tables",
   {
@@ -28,6 +37,9 @@ server.registerTool(
   },
 );
 
+// --- Tool: get_schema ---
+// Returns the CREATE TABLE statement and column metadata (via PRAGMA table_info)
+// for a given table. Useful for understanding table structure before querying.
 server.registerTool(
   "get_schema",
   {
@@ -58,6 +70,9 @@ server.registerTool(
   },
 );
 
+// --- Tool: read_query ---
+// Executes a read-only SQL query. Only SELECT statements are permitted to
+// prevent accidental or malicious data modification through the MCP interface.
 server.registerTool(
   "read_query",
   {
@@ -79,6 +94,9 @@ server.registerTool(
   },
 );
 
+// Start the MCP server with a stdio transport. The StdioServerTransport reads
+// JSON-RPC requests from stdin and writes responses to stdout. All logging uses
+// console.error (stderr) to avoid corrupting the protocol stream on stdout.
 async function startMcpServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
@@ -90,13 +108,18 @@ startMcpServer().catch((error) => {
   process.exit(1);
 });
 
-// --- Express API (HTTP) for the web client ---
+// =============================================================================
+// Express REST API (HTTP) for the web client
+// =============================================================================
+// The web client (React frontend) cannot communicate over stdio, so we expose
+// the same database operations as REST endpoints over HTTP. This runs alongside
+// the MCP server in the same process, sharing the same SQLite database instance.
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// REST endpoints for the web client (mirrors MCP tools)
+// GET /api/tables — Lists all user-created tables (mirrors MCP "list_tables" tool)
 app.get("/api/tables", (_req, res) => {
   try {
     const tables = db
@@ -108,6 +131,7 @@ app.get("/api/tables", (_req, res) => {
   }
 });
 
+// GET /api/schema/:tableName — Returns the schema for a table (mirrors MCP "get_schema" tool)
 app.get("/api/schema/:tableName", (req, res) => {
   try {
     const { tableName } = req.params;
@@ -128,6 +152,7 @@ app.get("/api/schema/:tableName", (req, res) => {
   }
 });
 
+// POST /api/query — Executes a read-only SELECT query (mirrors MCP "read_query" tool)
 app.post("/api/query", (req, res) => {
   try {
     const { query } = req.body;
@@ -149,6 +174,9 @@ app.post("/api/query", (req, res) => {
   }
 });
 
+// POST /api/nl-query — Accepts a natural language question, uses LangGraph to
+// convert it into SQL, executes it, and returns the results along with the
+// generated SQL and reasoning.
 app.post("/api/nl-query", async (req, res) => {
   try {
     const { query } = req.body;
