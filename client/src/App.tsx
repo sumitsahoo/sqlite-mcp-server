@@ -113,7 +113,10 @@ function App() {
   };
 
   // Helper to render the data table
-  const renderDataTable = (results: Record<string, unknown>[] | null | undefined, errorState: string | null) => {
+  const renderDataTable = (
+    results: Record<string, unknown>[] | null | undefined,
+    errorState: string | null,
+  ) => {
     if (errorState) {
       return (
         <div className="m-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 font-mono text-sm max-h-48 overflow-auto">
@@ -209,10 +212,11 @@ function App() {
               type="button"
               key={table.name}
               onClick={() => handleSelectTable(table.name)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 group relative overflow-hidden ${selectedTable === table.name
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 group relative overflow-hidden ${
+                selectedTable === table.name
                   ? "bg-brand-100 text-brand-700 border border-brand-200 font-medium shadow-sm"
                   : "text-surface-600 hover:bg-surface-100 hover:text-surface-800 border border-transparent"
-                }`}
+              }`}
             >
               {selectedTable === table.name && (
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-400 rounded-r" />
@@ -273,20 +277,22 @@ function App() {
             <div className="flex gap-4 border-b border-surface-200 px-2 mb-4 shrink-0">
               <button
                 type="button"
-                className={`flex items-center gap-2 pb-2 text-sm font-medium transition-colors border-b-2 px-2 -mb-[1px] ${activeTab === "sql"
+                className={`flex items-center gap-2 pb-2 text-sm font-medium transition-colors border-b-2 px-2 -mb-[1px] ${
+                  activeTab === "sql"
                     ? "text-brand-600 border-brand-400"
                     : "text-surface-400 border-transparent hover:text-surface-600"
-                  }`}
+                }`}
                 onClick={() => setActiveTab("sql")}
               >
                 <Terminal size={16} /> Raw SQL
               </button>
               <button
                 type="button"
-                className={`flex items-center gap-2 pb-2 text-sm font-medium transition-colors border-b-2 px-2 -mb-[1px] ${activeTab === "nl"
+                className={`flex items-center gap-2 pb-2 text-sm font-medium transition-colors border-b-2 px-2 -mb-[1px] ${
+                  activeTab === "nl"
                     ? "text-brand-600 border-brand-400"
                     : "text-surface-400 border-transparent hover:text-surface-600"
-                  }`}
+                }`}
                 onClick={() => setActiveTab("nl")}
               >
                 <Sparkles size={16} /> Ask AI

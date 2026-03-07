@@ -8,69 +8,69 @@ dotenv.config();
 
 // Tool: List Tables
 const listTablesTool = tool(
-    async () => {
-        const tables = db
-            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-            .all();
-        return JSON.stringify(tables, null, 2);
-    },
-    {
-        name: "list_tables",
-        description: "Lists all tables in the SQLite database.",
-        schema: z.object({}),
-    },
+  async () => {
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+      .all();
+    return JSON.stringify(tables, null, 2);
+  },
+  {
+    name: "list_tables",
+    description: "Lists all tables in the SQLite database.",
+    schema: z.object({}),
+  },
 );
 
 // Tool: Get Schema
 const getSchemaTool = tool(
-    async ({ tableName }) => {
-        const tableInfo = db
-            .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?")
-            .get(tableName) as { sql: string } | undefined;
+  async ({ tableName }) => {
+    const tableInfo = db
+      .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?")
+      .get(tableName) as { sql: string } | undefined;
 
-        if (!tableInfo) {
-            return `Table not found: ${tableName}`;
-        }
+    if (!tableInfo) {
+      return `Table not found: ${tableName}`;
+    }
 
-        const columns = db.pragma(`table_info(${tableName})`);
-        return JSON.stringify({ createStatement: tableInfo.sql, columns }, null, 2);
-    },
-    {
-        name: "get_schema",
-        description: "Gets the schema (CREATE statement and columns) for a specific table.",
-        schema: z.object({
-            tableName: z.string().describe("The name of the table to get the schema for"),
-        }),
-    },
+    const columns = db.pragma(`table_info(${tableName})`);
+    return JSON.stringify({ createStatement: tableInfo.sql, columns }, null, 2);
+  },
+  {
+    name: "get_schema",
+    description: "Gets the schema (CREATE statement and columns) for a specific table.",
+    schema: z.object({
+      tableName: z.string().describe("The name of the table to get the schema for"),
+    }),
+  },
 );
 
 // Tool: Read Query
 const readQueryTool = tool(
-    async ({ query }) => {
-        if (!query.trim().toLowerCase().startsWith("select")) {
-            return "Error: Only SELECT queries are allowed for safety.";
-        }
-        try {
-            const results = db.prepare(query).all();
-            return JSON.stringify(results, null, 2);
-        } catch (e: unknown) {
-            return `Error executing query: ${e instanceof Error ? e.message : String(e)}`;
-        }
-    },
-    {
-        name: "read_query",
-        description: "Executes a read-only SELECT query against the SQLite database.",
-        schema: z.object({
-            query: z.string().describe("The SQL SELECT query to execute"),
-        }),
-    },
+  async ({ query }) => {
+    if (!query.trim().toLowerCase().startsWith("select")) {
+      return "Error: Only SELECT queries are allowed for safety.";
+    }
+    try {
+      const results = db.prepare(query).all();
+      return JSON.stringify(results, null, 2);
+    } catch (e: unknown) {
+      return `Error executing query: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  },
+  {
+    name: "read_query",
+    description: "Executes a read-only SELECT query against the SQLite database.",
+    schema: z.object({
+      query: z.string().describe("The SQL SELECT query to execute"),
+    }),
+  },
 );
 
 const tools = [listTablesTool, getSchemaTool, readQueryTool];
 
 const llm = new ChatOpenAI({
-    model: "gpt-4o",
-    temperature: 0,
+  model: "gpt-4o",
+  temperature: 0,
 });
 
 const systemMessage = `You are a specialized database assistant. Your goal is to translate the user's natural language question into an SQLite query, execute it, and return the results.
@@ -87,38 +87,38 @@ You MUST follow this process:
 If there is an error during execution or you cannot find data, try fixing the query. If you absolutely cannot answer the query, "results" should be [] and "thought" should explain the failure.`;
 
 export const agent = createAgent({
-    model: llm,
-    tools,
-    systemPrompt: systemMessage,
+  model: llm,
+  tools,
+  systemPrompt: systemMessage,
 });
 
 export async function runNLQuery(userQuery: string) {
-    try {
-        const response = await agent.invoke({
-            messages: [{ role: "user", content: userQuery }],
-        });
+  try {
+    const response = await agent.invoke({
+      messages: [{ role: "user", content: userQuery }],
+    });
 
-        const finalAgentMessage = response.messages[response.messages.length - 1];
-        let contentStr =
-            typeof finalAgentMessage.content === "string"
-                ? finalAgentMessage.content
-                : JSON.stringify(finalAgentMessage.content);
+    const finalAgentMessage = response.messages[response.messages.length - 1];
+    let contentStr =
+      typeof finalAgentMessage.content === "string"
+        ? finalAgentMessage.content
+        : JSON.stringify(finalAgentMessage.content);
 
-        // Strip markdown JSON wrapping if the LLM adds it despite instructions
-        contentStr = contentStr.trim();
-        if (contentStr.startsWith("```json")) {
-            contentStr = contentStr.replace(/^```json/, "");
-        } else if (contentStr.startsWith("```")) {
-            contentStr = contentStr.replace(/^```/, "");
-        }
-        if (contentStr.endsWith("```")) {
-            contentStr = contentStr.replace(/```$/, "");
-        }
-
-        const parsed = JSON.parse(contentStr.trim());
-        return parsed;
-    } catch (err: unknown) {
-        console.error("NL LangGraph Error:", err);
-        throw new Error(`Agent execution failed: ${err instanceof Error ? err.message : String(err)}`);
+    // Strip markdown JSON wrapping if the LLM adds it despite instructions
+    contentStr = contentStr.trim();
+    if (contentStr.startsWith("```json")) {
+      contentStr = contentStr.replace(/^```json/, "");
+    } else if (contentStr.startsWith("```")) {
+      contentStr = contentStr.replace(/^```/, "");
     }
+    if (contentStr.endsWith("```")) {
+      contentStr = contentStr.replace(/```$/, "");
+    }
+
+    const parsed = JSON.parse(contentStr.trim());
+    return parsed;
+  } catch (err: unknown) {
+    console.error("NL LangGraph Error:", err);
+    throw new Error(`Agent execution failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
